@@ -1,0 +1,18 @@
+# @package _global_
+type: "color"
+dataset: "MNIST"
+train:
+  do: True
+  epochs: 1500
+  batch_size: 256
+  valid_every: 10
+  weight_decay: 1e-5
+model:
+  rot: 3
+  partial: False
+  insta: False
+  insta_params:
+    num_samples: 1
+    lambda_entropy: 1e-4
+    h_min: -1.5
+    h_max: 2

@@ -1,0 +1,18 @@
+# @package _global_
+type: "color"
+dataset: "Flowers102"
+train:
+  do: True
+  epochs: 300
+  batch_size: 64
+  valid_every: 10
+  weight_decay: 0
+model:
+  rot: 3
+  partial: False
+  insta: False
+  insta_params:
+    num_samples: 1
+    lambda_entropy: 1e-4
+    h_min: -1.5
+    h_max: 2

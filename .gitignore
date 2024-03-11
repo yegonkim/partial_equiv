@@ -1,0 +1,15 @@
+*.pyc
+*.pdf
+*.state
+*.tfevents*
+*.df
+*.s
+.idea
+data
+!data/.gitkeep
+outputs
+saved
+wandb
+*.png
+*.log
+

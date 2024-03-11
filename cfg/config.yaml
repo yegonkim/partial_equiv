@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - task: flowers
+wandb:
+  entity: kaist_yegonkim
+  project: partial_equiv
+pretrained: 
+device: cuda
+seed: 0
+comment: ""
+no_workers: 1
+
