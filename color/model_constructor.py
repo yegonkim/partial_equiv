@@ -5,8 +5,8 @@ import wandb
 from omegaconf import OmegaConf
 
 from torchvision.models import resnet18
-from .CEConv import models
-from .color_aug import color_aug
+from color.CEConv import models
+from color.color_aug import color_aug
 
 def resnet(num_classes=2):
     network = resnet18()
@@ -69,6 +69,16 @@ def construct_model(
             model = models.CECNN_partial(planes=17, rotations=cfg.model.rot, num_classes=30)
         if cfg.model.insta:
             invariance = models.CNN(planes=17, num_classes=2)
+            model = InstaModel(model, invariance, num_samples=cfg.model.insta_params.num_samples)
+    elif cfg.dataset in ["CIFAR10"]:
+        if not cfg.model.partial:
+            model = models.CEResNet18(pretrained=False, progress=False, rotations=cfg.model.rot, num_classes=10,
+                            groupcosetmaxpool=True, separable=True)
+        else:
+            model = models.CEResNet18_partial(pretrained=False, progress=False, rotations=cfg.model.rot, num_classes=10,
+                            groupcosetmaxpool=True, separable=True)
+        if cfg.model.insta:
+            invariance = resnet(num_classes=2)
             model = InstaModel(model, invariance, num_samples=cfg.model.insta_params.num_samples)
     else:
         raise NotImplementedError(f"Dataset {cfg.dataset} is not implemented.")

@@ -1,6 +1,6 @@
 import sys
-sys.path.append('rotation')
-sys.path.append('color')
+# sys.path.append('rotation')
+# sys.path.append('color')
 
 import hydra
 from omegaconf import OmegaConf

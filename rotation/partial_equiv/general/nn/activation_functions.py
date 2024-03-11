@@ -6,7 +6,7 @@
 # torch
 import torch
 
-from partial_equiv.general.nn.misc import FunctionAsModule
+from rotation.partial_equiv.general.nn.misc import FunctionAsModule
 
 
 def Swish():

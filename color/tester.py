@@ -48,6 +48,7 @@ def classification_test(
 ):
     device = cfg.device
     model.eval()
+    
     with torch.no_grad():
         running_loss = 0
         running_corrects = 0
@@ -74,6 +75,7 @@ def classification_test(
         "loss_test": epoch_loss,
     }
     wandb.log(metrics)
+    print(f"Accuracy of the network on test samples: {(100 * epoch_acc)}%")
 
 def classification_test_insta(
     model: torch.nn.Module,
@@ -82,12 +84,14 @@ def classification_test_insta(
     cfg: OmegaConf,
 ):
     device = cfg.device
+    lambda_entropy = cfg.model.insta_params.lambda_entropy
     model.eval()
+
     with torch.no_grad():
         running_loss = 0
         running_corrects = 0
         total = 0
-        for data in dataloaders["validation"]:
+        for data in dataloaders["test"]:
             inputs, labels = data
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -111,3 +115,4 @@ def classification_test_insta(
         "loss_test": epoch_loss,
     }
     wandb.log(metrics)
+    print(f"Accuracy of the network on test samples: {(100 * epoch_acc)}%")

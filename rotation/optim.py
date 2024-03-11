@@ -11,14 +11,14 @@ from distutils.util import check_environ
 import math
 
 import torch
-from .models.expckresnet import ExpCKResBlock, ExpCKResNet
+# from .models.expckresnet import ExpCKResBlock, ExpCKResNet
 
 # project
-from .partial_equiv import general as gral
-from . import partial_equiv
-from .globals import DATASET_SIZES
-from .partial_equiv.partial_gconv.expconv import ExpConv
-from .partial_equiv.partial_gconv.varconv import VarConv
+from rotation.partial_equiv import general as gral
+from rotation import partial_equiv
+from rotation.globals import DATASET_SIZES
+from rotation.partial_equiv.partial_gconv.expconv import ExpConv
+from rotation.partial_equiv.partial_gconv.varconv import VarConv
 
 
 def construct_optimizer(model, cfg):

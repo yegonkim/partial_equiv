@@ -1,0 +1,21 @@
+# @package _global_
+type: "color"
+dataset: "CIFAR10"
+train:
+  do: True
+  epochs: 300
+  batch_size: 64
+  valid_every: 1
+  weight_decay: 0.0001
+model:
+  rot: 3
+  partial: False
+  insta: False
+  insta_params:
+    num_samples: 1
+    lambda_entropy: 1e-4
+    h_min: -1.5
+    h_max: 2
+dataset_params:
+  rot_interval: 0
+augment: None

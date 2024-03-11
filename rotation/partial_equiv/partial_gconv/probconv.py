@@ -8,12 +8,12 @@ import torch
 import torch.nn.functional as torch_F
 from omegaconf import OmegaConf
 
-import partial_equiv.ck as ck
+import rotation.partial_equiv.ck as ck
 
 # project
-import partial_equiv.general.utils as g_utils
-from partial_equiv.groups import Group, SamplingMethods
-from partial_equiv.partial_gconv.module import Filter, circular_masking
+import rotation.partial_equiv.general.utils as g_utils
+from rotation.partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.partial_gconv.module import Filter, circular_masking
 from .conv import ConvBase, GroupConvBase, LiftingConvBase
 import math
 from torchvision.transforms.functional import rotate

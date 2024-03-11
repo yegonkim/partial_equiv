@@ -12,7 +12,7 @@ import torch
 from torch.nn.utils import weight_norm as w_norm
 
 # project
-import partial_equiv.general as gral
+import rotation.partial_equiv.general as gral
 
 
 class SIRENBase(torch.nn.Module):

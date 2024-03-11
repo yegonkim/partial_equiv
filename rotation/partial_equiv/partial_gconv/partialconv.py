@@ -8,15 +8,15 @@ import torch
 import torch.nn.functional as torch_F
 from omegaconf import OmegaConf
 
-import partial_equiv.ck as ck
-from partial_equiv.ck.mlp import MLP
+import rotation.partial_equiv.ck as ck
+from rotation.partial_equiv.ck.mlp import MLP
 
 # project
-import partial_equiv.general.utils as g_utils
-from partial_equiv.groups import Group, SamplingMethods
-from partial_equiv.partial_gconv.conv import LiftingConvBase
-from partial_equiv.partial_gconv.module import Filter, MLPFilter
-from partial_equiv.partial_gconv.probconv import ProbConv
+import rotation.partial_equiv.general.utils as g_utils
+from rotation.partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.partial_gconv.conv import LiftingConvBase
+from rotation.partial_equiv.partial_gconv.module import Filter, MLPFilter
+from rotation.partial_equiv.partial_gconv.probconv import ProbConv
 
 class PartialLiftingConv(LiftingConvBase, ProbConv):
     def __init__(

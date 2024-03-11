@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 # validation splits
 # datasets
-from datasets import (  # 2D Datasets
+from rotation.datasets import (  # 2D Datasets
     CIFAR10,
     CIFAR10_VALIDATION_SPLIT,
     CIFAR100,

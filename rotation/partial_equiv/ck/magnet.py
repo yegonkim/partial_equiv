@@ -9,7 +9,7 @@
 import numpy as np
 import torch
 
-import partial_equiv.general as gral
+import rotation.partial_equiv.general as gral
 
 from .mfn import MFNBase, gaussian_window
 

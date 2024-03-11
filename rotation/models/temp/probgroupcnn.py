@@ -8,17 +8,17 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 from omegaconf import OmegaConf
-from models.groupcnn import GCNN
+from rotation.models.groupcnn import GCNN
 
-import partial_equiv.general as gral
-import partial_equiv.groups as groups
+import rotation.partial_equiv.general as gral
+import rotation.partial_equiv.groups as groups
 
 # project
-import partial_equiv.partial_gconv as partial_gconv
-from partial_equiv.general.nn.pass_module import ApplyFirstElem
+import rotation.partial_equiv.partial_gconv as partial_gconv
+from rotation.partial_equiv.general.nn.pass_module import ApplyFirstElem
 
 # typing
-from partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.groups import Group, SamplingMethods
 
 from .ckresnet import rot_img
 

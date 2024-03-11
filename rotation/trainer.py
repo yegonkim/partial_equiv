@@ -22,20 +22,20 @@ from hydra import utils
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from .models.probckresnet import ProbCKResBlock, ProbCKResNet
+# from rotation.models.probckresnet import ProbCKResBlock, ProbCKResNet
 
-from . import optim
-from .partial_equiv import general as gral
-from .partial_equiv import partial_gconv as partial_gconv
-from .partial_equiv.partial_gconv.conv import PartConv
-from .partial_equiv.partial_gconv.probconv import ProbConv, ProbGroupConv, ProbLiftingConv
-from .partial_equiv.partial_gconv.expconv import ExpConv
-from .partial_equiv.partial_gconv.varconv import VarConv
+from rotation import optim
+from rotation.partial_equiv import general as gral
+from rotation.partial_equiv import partial_gconv as partial_gconv
+from rotation.partial_equiv.partial_gconv.conv import PartConv
+from rotation.partial_equiv.partial_gconv.probconv import ProbConv, ProbGroupConv, ProbLiftingConv
+from rotation.partial_equiv.partial_gconv.expconv import ExpConv
+from rotation.partial_equiv.partial_gconv.varconv import VarConv
 
 # project
 from . import tester
 from .globals import IMG_DATASETS
-from .partial_equiv import ck
+from rotation.partial_equiv import ck
 
 
 def train(
@@ -140,7 +140,6 @@ def classification_train(
 
             # Accumulate accuracy and loss
             running_loss = 0
-            running_entropy = 0
             running_corrects = 0
             total = 0
 
@@ -184,12 +183,6 @@ def classification_train(
                             equiv_loss(model, inputs)
 
                     if phase == "train":
-
-                        entropy = torch.zeros_like(loss)
-                        for m in model.modules():
-                            if isinstance(m, (ProbConv, ExpConv, VarConv)):
-                                entropy += m.entropy
-                        loss += -cfg.train.lamda*entropy
                         # Backward pass
                         loss.backward()
 
@@ -217,16 +210,14 @@ def classification_train(
 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
-                running_entropy += entropy.item() * inputs.size(0)
                 running_corrects += (preds == labels).sum().item()
                 total += labels.size(0)
 
             # statistics of the epoch
             epoch_loss = running_loss / total
-            epoch_entropy = running_entropy / total
             epoch_acc = running_corrects / total
             print(
-                f"{phase} Loss: {epoch_loss:.4f} Entropy: {epoch_entropy:.4f} Acc: {epoch_acc:.4f}")
+                f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
             print(datetime.datetime.now())
 
             # log statistics of the epoch
@@ -234,7 +225,6 @@ def classification_train(
                 "accuracy" + "_" + phase: epoch_acc,
                 "loss" + "_" + phase: epoch_loss,
             }
-            metrics[f"entropy_{phase}"] = epoch_entropy
             wandb.log(
                 metrics,
                 step=epoch + 1,
@@ -496,17 +486,6 @@ def classification_train_insta(
                 with torch.set_grad_enabled(train):
                     # Fwrd pass:
                     outputs, entropy = model(inputs)
-                    # Rinputs = torch.rot90(inputs,k=2)
-                    # Routputs = model(Rinputs)
-                    # if torch.any(labels==0) and torch.any(labels==6):
-                    #     mask0 = labels == 0
-                    #     mask6 = labels == 6
-                    #     outputs0 = torch.argmax(outputs[mask0][0], dim=-1).detach().cpu()
-                    #     outputs6 = torch.argmax(outputs[mask6][0], dim=-1).detach().cpu()
-                    #     Routputs0 = torch.argmax(Routputs[mask0][0], dim=-1).detach().cpu()
-                    #     Routputs6 = torch.argmax(Routputs[mask6][0], dim=-1).detach().cpu()
-                    #     print(" outputs", outputs0, outputs6, flush=True)
-                    #     print("Routputs", Routputs0, Routputs6, flush=True)
                     loss = criterion(outputs, labels) - cfg.train.lamda * entropy
                     _, preds = torch.max(outputs, 1)
 
@@ -516,16 +495,9 @@ def classification_train_insta(
                     if cfg.train.monotonic_decay_loss > 0.0:
                         loss = loss + mono_decay_loss(model)
                     if cfg.train.equiv_loss > 0.:
-                        loss = loss + cfg.train.equiv_loss * \
-                            equiv_loss(model, inputs)
+                        loss = loss + cfg.train.equiv_loss * equiv_loss(model, inputs)
 
                     if phase == "train":
-
-                        entropy = torch.zeros_like(loss)
-                        for m in model.modules():
-                            if isinstance(m, (ProbConv, ExpConv, VarConv)):
-                                entropy += m.entropy
-                        loss += -cfg.train.lamda*entropy
                         # Backward pass
                         loss.backward()
 

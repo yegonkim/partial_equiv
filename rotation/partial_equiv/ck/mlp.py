@@ -10,7 +10,7 @@ from functools import partial
 
 import torch
 
-import partial_equiv.general.nn.activation_functions
+import rotation.partial_equiv.general.nn.activation_functions
 
 
 class MLPBase(torch.nn.Module):

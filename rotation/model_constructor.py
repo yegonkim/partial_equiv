@@ -15,12 +15,12 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 
-import models
-from .partial_equiv import general as gral
+from rotation import models
+from rotation.partial_equiv import general as gral
 
 # project
-from .partial_equiv import groups as groups
-from .globals import DATASET_SIZES
+from rotation.partial_equiv import groups as groups
+from rotation.globals import DATASET_SIZES
 
 
 def construct_model(
@@ -37,7 +37,7 @@ def construct_model(
     elif cfg.dataset in ["CIFAR10", "CIFAR100", "STL10", "PCam"]:
         in_channels = 3
     else:
-        raise NotImplementedError(f"Not in_channels for dataset {cfg.dataset} found.")
+        raise NotImplementedError(f"in_channels for dataset {cfg.dataset} found.")
 
     # Define output_channels
     if cfg.dataset in [

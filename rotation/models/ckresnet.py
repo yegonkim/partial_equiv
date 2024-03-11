@@ -15,15 +15,15 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 from omegaconf import OmegaConf
 
-import partial_equiv.general as gral
-import partial_equiv.groups as groups
+import rotation.partial_equiv.general as gral
+import rotation.partial_equiv.groups as groups
 
 # project
-import partial_equiv.partial_gconv as partial_gconv
-from partial_equiv.general.nn.pass_module import ApplyFirstElem
+import rotation.partial_equiv.partial_gconv as partial_gconv
+from rotation.partial_equiv.general.nn.pass_module import ApplyFirstElem
 
 # typing
-from partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.groups import Group, SamplingMethods
 
 from torchvision.models import resnet18
 import torch.nn as nn
@@ -414,7 +414,7 @@ def get_rot_mat(theta):
 def rot_img(x, theta, dtype):
     rot_mat = get_rot_mat(theta)[None, ...].type(dtype).repeat(x.shape[0], 1, 1)
     grid = F.affine_grid(rot_mat, x.size(), align_corners=True).type(dtype)
-    x = F.grid_sample(x, grid)
+    x = F.grid_sample(x, grid, align_corners=False)
     return x
 
 
@@ -532,7 +532,7 @@ class InstaCKResNet(torch.nn.Module):
         bs = x.shape[0]
         rot_mat = self.get_rot_mat_insta(theta) # [bs, 2, 3]
         grid = F.affine_grid(rot_mat, x.size(), align_corners=True)
-        x = F.grid_sample(x, grid)
+        x = F.grid_sample(x, grid, align_corners=False)
         return x
     
     def entropy_param(self, inv_param):

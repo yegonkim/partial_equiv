@@ -165,10 +165,11 @@ class SE2(Group):
         if method == SamplingMethods.RANDOM:
             # The theta value to learn (it is multiplied by 2 pi when sampling).
             probs = torch.ones(1)
-
-        if method == SamplingMethods.DETERMINISTIC:
+        elif method == SamplingMethods.DETERMINISTIC:
             # The dimension is no_elements - 1, because we always sample the identity.
             probs = torch.ones(no_elements - 1)
+        else:
+            raise NotImplementedError(f"Sampling method {method} not implemented.")
 
         return probs
 
@@ -224,7 +225,6 @@ class SE2(Group):
             g_elems = self.exponential_map(uniform_grid.unsqueeze(0))
 
         elif method == SamplingMethods.RANDOM:
-
             if not partial_equivariance:
 
                 uniform_grid = torch.linspace(
@@ -265,7 +265,8 @@ class SE2(Group):
                 delta = torch.rand(no_samples, 1, device=device) * (2 * math.pi * probs) / float(no_elements)
 
                 g_elems = self.exponential_map((uniform_grid - math.pi * probs).unsqueeze(0) + delta)
-
+        else:
+            raise NotImplementedError(f"Sampling method {method} not implemented.")
         # Perturb the entire grid by a random rotation
         return g_elems
 

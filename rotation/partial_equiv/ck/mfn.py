@@ -13,7 +13,7 @@ import numpy as np
 import torch
 
 # project
-import partial_equiv.general as gral
+import rotation.partial_equiv.general as gral
 
 
 class MFNBase(torch.nn.Module):

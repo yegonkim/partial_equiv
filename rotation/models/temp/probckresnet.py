@@ -7,20 +7,19 @@ import torchvision.transforms.functional as TF
 from torchvision.transforms import InterpolationMode
 from torchvision.utils import save_image
 from omegaconf import OmegaConf
-from models.ckresnet import CKResBlock
 
-import partial_equiv.general as gral
-import partial_equiv.groups as groups
+import rotation.partial_equiv.general as gral
+import rotation.partial_equiv.groups as groups
 
 # project
-import partial_equiv.partial_gconv as partial_gconv
-from partial_equiv.general.nn.pass_module import ApplyFirstElem
+import rotation.partial_equiv.partial_gconv as partial_gconv
+from rotation.partial_equiv.general.nn.pass_module import ApplyFirstElem
 
 # typing
-from partial_equiv.groups import Group, SamplingMethods
-from partial_equiv.partial_gconv.module import circular_masking
+from rotation.partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.partial_gconv.module import circular_masking
 
-class ExpCKResBlock(torch.nn.Module):
+class ProbCKResBlock(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -36,8 +35,9 @@ class ExpCKResBlock(torch.nn.Module):
         super().__init__()
 
         # Define convolutional layers
+        ProbGroupConv = (partial_gconv.ProbGroupConv if conv_config.partial_equiv else partial_gconv.LocalGroupConv)
         Conv = partial(
-            partial_gconv.ExpGroupConv,
+            ProbGroupConv,
             base_group_config=base_group_config,
             kernel_config=kernel_config,
             conv_config=conv_config,
@@ -90,17 +90,27 @@ class ExpCKResBlock(torch.nn.Module):
         else:
             self.shortcut_is_pointwise = False
         self.shortcut = torch.nn.Sequential(*shortcut)
+        
+
+    def entropy(self):
+        return self.gconv1.entropy + self.gconv2.entropy
 
     def forward(self, input_tuple):
-        x, input_g_elems, filter = input_tuple
+        x, input_g_elems, input_x = input_tuple
         # Following Sosnovik et al. 2020, dropout placed after first ReLU.
-        out, g_elems, filter = self.gconv1([x, input_g_elems, filter])
+        output = self.gconv1([x, input_g_elems, input_x])
+        out = output[0]
+        g_elems = output[1]
         out = torch.nn.functional.layer_norm(out, out.shape[-3:])  # InstanceNorm
         out, g_elems = self.dp(self.activ([out, g_elems]))
+        # self.entropy += self.gconv1.entropy
 
-        out, g_elems, filter = self.gconv2([out, g_elems, filter])
+        output = self.gconv2([out, g_elems, input_x])
+        out = output[0]
+        g_elems = output[1]
         out = torch.nn.functional.layer_norm(out, out.shape[-3:])  # InstanceNorm
         out, g_elems = self.activ([out, g_elems])
+        # self.entropy += self.gconv2.entropy
 
         # Shortcut
         if self.shortcut_is_pointwise:
@@ -110,10 +120,9 @@ class ExpCKResBlock(torch.nn.Module):
         out = out + shortcut
 
         out, g_elems = self.activ(self.pool(self.norm_out([out, g_elems])))
-        return out, g_elems, filter
+        return out, g_elems, input_x
 
-
-class ExpCKResNet(torch.nn.Module):
+class ProbCKResNet(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -144,6 +153,7 @@ class ExpCKResNet(torch.nn.Module):
         self.out_channels = out_channels
         self.last_conv_is_T2 = last_conv_is_T2
         self.partial_equiv = conv_config.partial_equiv
+        self.lift_partial_equiv = conv_config.lift_partial_equiv
         self.learnable_final_pooling = learnable_final_pooling
         self.final_spatial_dim = torch.tensor(final_spatial_dim)
 
@@ -159,7 +169,10 @@ class ExpCKResNet(torch.nn.Module):
         self.activ = ApplyFirstElem(torch.nn.ReLU())
 
         # Lifting
-        self.lift_conv = partial_gconv.LiftingConv(
+        LiftingConv = (
+            partial_gconv.PartialLiftingConv if self.lift_partial_equiv else partial_gconv.LiftingConv
+        )
+        self.lift_conv = LiftingConv(
             in_channels=in_channels,
             out_channels=hidden_channels,
             group=copy.deepcopy(base_group),
@@ -206,9 +219,9 @@ class ExpCKResNet(torch.nn.Module):
                 input_ch = int(hidden_channels * width_factors[i - 1])
                 hidden_ch = int(hidden_channels * width_factors[i])
 
-            conv_config.partial_equiv = False
+
             blocks.append(
-                CKResBlock(
+                ProbCKResBlock(
                     in_channels=input_ch,
                     out_channels=hidden_ch,
                     group=base_group,
@@ -220,7 +233,6 @@ class ExpCKResNet(torch.nn.Module):
                     pool=(i + 1) in pool_blocks,
                 )
             )
-        conv_config.partial_equiv = True
         self.blocks = torch.nn.Sequential(*blocks)
 
         # Last layer
@@ -244,7 +256,8 @@ class ExpCKResNet(torch.nn.Module):
             last_lyr_base_group_config.sample_per_layer = False
             last_lyr_base_group_config.sampling_method = SamplingMethods.DETERMINISTIC
 
-        self.last_gconv = partial_gconv.ExpGroupConv(
+        ProbGroupConv = (partial_gconv.ProbGroupConv if conv_config.partial_equiv else partial_gconv.LocalGroupConv)
+        self.last_gconv = ProbGroupConv(
             in_channels=final_no_hidden,
             out_channels=final_no_hidden,
             group=base_group,
@@ -271,43 +284,35 @@ class ExpCKResNet(torch.nn.Module):
         # create
         self.out_layer = LastLinearType(in_channels=final_no_hidden, out_channels=out_channels)
 
-        filter_hidden = hidden_channels
-        self.filter_embed = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels, filter_hidden, 3, 2),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(filter_hidden, filter_hidden, 3, 2),
-            torch.nn.ReLU(),
-            torch.nn.AvgPool2d(2),
-        )
-        self.filter_head = torch.nn.Sequential(
-            torch.nn.Linear(filter_hidden,2*filter_hidden),
-            torch.nn.ReLU(),
-            torch.nn.Linear(2*filter_hidden,2*no_blocks+1)
-        )
-        # with torch.no_grad():
-        #     torch.nn.init.zeros_(self.filter_head[-1].weight)
-        #     torch.nn.init.ones_(self.filter_head[-1].bias)
-        #     # self.filter_head[-1].bias.fill_(5)
+    def entropy(self):
+        e = 0
+        for b in self.blocks:
+            e += b.entropy()
+        e += self.last_gconv.entropy
+        return e
 
     def forward(self, x):
-        filter = self.filter_embed(x)
-        filter = filter.mean(dim=(-1,-2))
-        filter = self.filter_head(filter) # (B, layers)
-        # filter = torch.sigmoid(filter)
-        assert len(filter.size()) == 2
-        assert filter.size(0) == x.size(0)
         # Lifting
         out, g_samples = self.activ(self.lift_pool(self.lift_norm(self.lift_conv(x))))
+        # Rx = TF.rotate(x, 45, InterpolationMode.BILINEAR)
+        # Rout, Rg_samples = self.activ(self.lift_pool(self.lift_norm(self.lift_conv(Rx))))
+        # _out = torch.cat(list(out[1,0]),dim=-1)
+        # _Rout = torch.cat(list(Rout[1,0]),dim=-1)
+        # show = torch.cat([_out,_Rout], dim=-2)
+        # save_image(show, "/mnt/home/hyunsu/partial_gcnn/equivariance_of_localliftingconv.png")
+        # assert False
 
         # Group blocks
-        out, g_samples = self.blocks([out, g_samples])
+        out, g_samples, _ = self.blocks([out, g_samples, x])
 
         # Last g_conv
         if self.last_conv_is_T2:
             out = torch.mean(out, dim=-3, keepdim=True)
             g_samples = torch.zeros_like(g_samples[:, :1], device=g_samples.device)
 
-        out, g_samples, _ = self.activ(self.last_gconv_norm(self.last_gconv([out, g_samples, filter])))
+        output = self.activ(self.last_gconv_norm(self.last_gconv([out, g_samples, x])))
+        out = output[0]
+        g_sammples = output[1]
 
         # global pooling
         if self.learnable_final_pooling:
@@ -315,8 +320,11 @@ class ExpCKResNet(torch.nn.Module):
             out = self.learnable_pooling(out.view(*out_shape[:-3], -1))
             out = out.view(*out_shape[:-3], *((1,) * (len(out_shape) - 2)))
         else:
-            out = torch.mean(out, dim=(-3, -2, -1), keepdim=True)
+            out = torch.amax(out, dim=(-3, -2, -1), keepdim=True)
 
         # Final layer
         out = self.out_layer(out.squeeze(-3))
         return out.view(-1, self.out_channels)
+
+
+

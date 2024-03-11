@@ -6,9 +6,9 @@ import torch
 import math
 
 # from models import CKResNet
-from partial_equiv.partial_gconv.conv import GroupConv, LiftingConv, PointwiseGroupConv
-from partial_equiv.partial_gconv.module import get_rotation_matrix_from_radian
-from partial_equiv.partial_gconv.probconv import LocalLiftingConv, ProbGroupConv, ProbLiftingConv
+from rotation.partial_equiv.partial_gconv.conv import GroupConv, LiftingConv, PointwiseGroupConv
+from rotation.partial_equiv.partial_gconv.module import get_rotation_matrix_from_radian
+from rotation.partial_equiv.partial_gconv.probconv import LocalLiftingConv, ProbGroupConv, ProbLiftingConv
 import torchvision
 
 

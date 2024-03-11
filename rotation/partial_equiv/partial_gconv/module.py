@@ -56,7 +56,7 @@ def circular_masking(image_tensor):
     radius = min(height, width) // 2
 
     # Create a grid of coordinates
-    y, x = torch.meshgrid(torch.arange(height), torch.arange(width))
+    y, x = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
     y, x = y.to(image_tensor), x.to(image_tensor)
 
     # Create a circular mask using the distance from the center

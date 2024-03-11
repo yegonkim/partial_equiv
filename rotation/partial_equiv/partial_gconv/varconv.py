@@ -13,12 +13,12 @@ import torch
 import torch.nn.functional as torch_F
 from omegaconf import OmegaConf
 
-import partial_equiv.ck as ck
+import rotation.partial_equiv.ck as ck
 
 # project
-import partial_equiv.general.utils as g_utils
-from partial_equiv.groups import Group, SamplingMethods
-from partial_equiv.partial_gconv.conv import GroupConvBase, LiftingConvBase
+import rotation.partial_equiv.general.utils as g_utils
+from rotation.partial_equiv.groups import Group, SamplingMethods
+from rotation.partial_equiv.partial_gconv.conv import GroupConvBase, LiftingConvBase
 
 
 class VarConv():

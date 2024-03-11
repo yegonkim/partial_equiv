@@ -8,11 +8,9 @@ import wandb
 import hydra
 from omegaconf import OmegaConf
 
-from .model_constructor import construct_model
-from .dataset_constructor import construct_dataloaders
-from . import utils
-from . import trainer
-from . import tester
+from color.model_constructor import construct_model
+from color.dataset_constructor import construct_dataloaders
+from color import utils, trainer, tester
 
 # @hydra.main(version_base=None, config_path="cfg", config_name="config.yaml")
 def main_color(cfg: OmegaConf):

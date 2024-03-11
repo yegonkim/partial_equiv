@@ -97,6 +97,9 @@ def classification_train(
         # statistics of the epoch
         epoch_loss = running_loss / total
         epoch_acc = running_corrects / total
+        print(
+            f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+        print(datetime.datetime.now())
 
         # log statistics of the epoch
         metrics = {
@@ -139,6 +142,9 @@ def classification_train(
                 metrics,
                 step=epoch + 1,
             )
+            print(
+                f"Validation Loss: {epoch_loss_valid:.4f} Acc: {epoch_acc_valid:.4f}")
+            print(datetime.datetime.now())
 
             # If better validation accuracy, replace best weights and compute the test performance
             if epoch_acc_valid > best_acc or (epoch_acc_valid == best_acc and epoch_loss_valid <= best_loss):
@@ -217,6 +223,9 @@ def classification_train_insta(
         epoch_loss = running_loss / total
         epoch_entropy = running_entropy / total
         epoch_acc = running_corrects / total
+        print(
+            f"Train Loss: {epoch_loss:.4f} Entropy: {epoch_entropy:.4f} Acc: {epoch_acc:.4f}")
+        print(datetime.datetime.now())
 
         if epoch_entropy < cfg.model.insta_params.h_min:
             lambda_entropy *= 1.2
@@ -269,6 +278,9 @@ def classification_train_insta(
                 metrics,
                 step=epoch + 1,
             )
+            print(
+                f"Validation Loss: {epoch_loss_valid:.4f} Entropy: {epoch_entropy:.4f} Acc: {epoch_acc_valid:.4f}")
+            print(datetime.datetime.now())
 
             # If better validation accuracy, replace best weights and compute the test performance
             if epoch_acc_valid > best_acc or (epoch_acc_valid == best_acc and epoch_loss_valid <= best_loss):

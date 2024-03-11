@@ -13,6 +13,35 @@ from torch.utils.data import TensorDataset
 import pandas as pd
 import scipy
 
+from omegaconf import OmegaConf
+
+from color.datasets import CIFAR10
+from torch.utils.data import DataLoader, Dataset, random_split
+
+def generate_cifar10(cfg: OmegaConf):
+    dataset = CIFAR10
+    validation_split = [45000, 5000]
+
+    training_set = dataset(
+        partition="train",
+        augment=cfg.augment,
+        rot_interval=cfg.dataset_params.rot_interval,
+    )
+    print("training set size", len(training_set))
+    test_set = dataset(
+        partition="test",
+        augment="None",
+        rot_interval=cfg.dataset_params.rot_interval,
+    )
+
+    training_set, validation_set = random_split(
+        training_set,
+        validation_split,
+        generator=torch.Generator().manual_seed(42),
+    )
+
+    return training_set, validation_set, test_set
+
 ### Long-tailed ColorMNIST
 # region
 def generate_set(dataset, samples_per_class, train, bg_noise_std=0.1, bg_intensity=0.33) -> TensorDataset:
