@@ -166,8 +166,10 @@ class CEConv2d(nn.Conv2d):
                     )
                 )
         
-        self.gumbel_temp = 1.0
-        self.gumbel_param = nn.Parameter(torch.stack([torch.ones(out_rotations-1)*5, torch.zeros(out_rotations-1)], dim=1)) # [out_rotations-1, 2]
+        self.gumbel_temp = 0.5
+        self.sigmoid_temp = 2.0
+        # self.probs = nn.Parameter(torch.stack([torch.ones(out_rotations-1)*5, torch.zeros(out_rotations-1)], dim=1)) # [out_rotations-1, 2]
+        self.gumbel_param = nn.Parameter(torch.ones(out_rotations - 1)) # [out_rotations-1]
 
         self.reset_parameters()
 
@@ -232,11 +234,28 @@ class CEConv2d(nn.Conv2d):
             bias = self.bias.view(1, self.out_channels, 1, 1, 1)
             y = y + bias
         
-        gumbel = gumbel_softmax(self.gumbel_param, self.gumbel_temp) # [out_rotations-1, 2]
-        gumbel = gumbel[:, 0] # [out_rotations]
-        gumbel = torch.cat([torch.ones(1).to(gumbel.device), gumbel], dim=0) # [out_rotations]
+
+        prob_rotations = (
+            torch.distributions.RelaxedBernoulli(
+                temperature=self.gumbel_temp,
+                logits=torch.sigmoid(self.sigmoid_temp * self.gumbel_param),
+            )
+            .rsample([1])
+            .squeeze()
+        )
+
+        sample_rotation = (prob_rotations > 0.5).float()
+
+        sample_rotation = sample_rotation - prob_rotations.detach() + prob_rotations
+
+        # Concatenate a 1.0 at the beginning (the probability of the identity)
+        sample_rotation = torch.cat([torch.ones(1, device=sample_rotation.device), sample_rotation])
+
+        # gumbel = gumbel_softmax(self.gumbel_param, self.gumbel_temp) # [out_rotations-1, 2]
+        # gumbel = gumbel[:, 0] # [out_rotations-1]
+        # gumbel = torch.cat([torch.ones(1).to(gumbel.device), gumbel], dim=0) # [out_rotations]
         
-        y = y * gumbel.view(1, 1, self.out_rotations, 1, 1)
+        y = y * sample_rotation.view(1, 1, self.out_rotations, 1, 1)
         # print(gumbel.shape, y.shape)
         # print(f'x.shape: {input.shape}, y.shape: {y.shape}, in_channels: {self.in_channels}, in_rotations: {self.in_rotations}, out_channels: {self.out_channels}, out_rotations: {self.out_rotations}')
 

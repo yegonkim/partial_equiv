@@ -1,6 +1,7 @@
 import math
 
 import torch
+from .CEConv.ceconv.ceconv2d_variational import CEConv2d as VarCEConv2d
 
 def construct_optimizer(model, cfg):
     """
@@ -9,6 +10,52 @@ def construct_optimizer(model, cfg):
     :param cfg: config dict.
     :return: optimizer
     """
+    if cfg.model.variational:
+        return optimizer_for_variational(model, cfg)
+    else:
+        return optimizer_for_partial(model, cfg)
+
+def optimizer_for_variational(model, cfg):
+    all_parameters = set(model.parameters())
+    # probs
+    filters = []
+    filter_detected = False
+    for m in model.modules():
+        if isinstance(m, (
+            VarCEConv2d 
+        )):
+            filter_detected = True
+            filters += list(
+                map(
+                    lambda x: x[1],
+                    list(
+                        filter(lambda kv: "filter" in kv[0], m.named_parameters())),
+                )
+            )
+    
+    if not filter_detected or len(filters) == 0:
+        raise Exception("No filter params despite of VP G-CNN")
+    else:
+        print(f"Separate {len(filters)} filter params from model")
+
+    filters = set(filters)
+    other_params = all_parameters - filters
+
+    # The parameters must be given as a list
+    filters = list(filters)
+    other_params = list(other_params)
+
+    optimizer = torch.optim.AdamW(
+        [
+            {"params": other_params},
+            {"params": filters, "lr": cfg.train.lr_probs},
+        ],
+        lr=cfg.train.lr,
+        weight_decay=cfg.train.weight_decay
+    )
+    return optimizer
+
+def optimizer_for_partial(model, cfg):
     all_parameters = set(model.parameters())
     # probs
     probs = []
@@ -33,6 +80,14 @@ def construct_optimizer(model, cfg):
     invariance_params = list(invariance_params)
     other_params = list(other_params)
 
+    # optimizer = torch.optim.Adam(
+    #     [
+    #         {"params": other_params, "lr": 1e-3},
+    #         {"params": invariance_params, "lr": 1e-3},
+    #         {"params": probs, "lr": 1e-3},
+    #     ],
+    #     weight_decay = cfg.train.weight_decay,
+    # )
     optimizer = torch.optim.Adam(
         [
             {"params": other_params, "lr": 1e-3},

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 import wandb
 from omegaconf import OmegaConf
@@ -49,9 +50,19 @@ def construct_model(
     :param cfg: A config file specifying the parameters of the model.
     :return: An instance of the model specified in the config (torch.nn.Module)
     """
+    gumbel_no_iterations = math.ceil(cfg.train_length / float(cfg.train.batch_size))  # Iter per epoch
+    gumbel_no_iterations = cfg.train.epochs * gumbel_no_iterations
 
     if cfg.dataset in ["Flowers102"]:
-        if not cfg.model.partial:
+        if cfg.model.variational:
+            model = models.CEResNet18_variational(
+                pretrained=False, progress=False,
+                rotations=cfg.model.rot, num_classes=102,
+                groupcosetmaxpool=True, separable=True,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=cfg.model.version
+            )
+        elif not cfg.model.partial:
             model = models.CEResNet18(pretrained=False, progress=False, rotations=cfg.model.rot, num_classes=102,
                             groupcosetmaxpool=True, separable=True)
         else:
@@ -61,7 +72,13 @@ def construct_model(
             invariance = resnet(num_classes=2)
             model = InstaModel(model, invariance, num_samples=cfg.model.insta_params.num_samples)
     elif cfg.dataset in ["MNIST"]:
-        if cfg.model.rot==1:
+        if cfg.model.variational:
+            model = models.CECNN_variational(
+                planes=17, rotations=cfg.model.rot, num_classes=30,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=cfg.model.version
+            )
+        elif cfg.model.rot==1:
             model = models.CNN(planes=17, num_classes=30)
         elif not cfg.model.partial:
             model = models.CECNN(planes=17, rotations=cfg.model.rot, num_classes=30)
@@ -71,7 +88,14 @@ def construct_model(
             invariance = models.CNN(planes=17, num_classes=2)
             model = InstaModel(model, invariance, num_samples=cfg.model.insta_params.num_samples)
     elif cfg.dataset in ["CIFAR10"]:
-        if not cfg.model.partial:
+        if cfg.model.variational:
+            model = models.CEResNet18_variational(
+                pretrained=False, progress=False, rotations=cfg.model.rot, num_classes=10,
+                groupcosetmaxpool=True, separable=True,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=cfg.model.version
+            )
+        elif not cfg.model.partial:
             model = models.CEResNet18(pretrained=False, progress=False, rotations=cfg.model.rot, num_classes=10,
                             groupcosetmaxpool=True, separable=True)
         else:

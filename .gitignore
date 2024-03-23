@@ -12,4 +12,4 @@ saved
 wandb
 *.png
 *.log
-
+.key.sh

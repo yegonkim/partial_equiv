@@ -4,9 +4,14 @@ defaults:
 wandb:
   entity: kaist_yegonkim
   project: partial_equiv
+  mode: online
 pretrained: 
 device: cuda
 seed: 0
 comment: ""
 no_workers: 1
+model:
+  rot: 3
+  variational: false
+  version: v1.0
 

@@ -7,7 +7,7 @@
 `python main.py task=flowers model.rot=3`
 `python main.py task=flowers model.rot=3 model.partial=True`
 `python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=3`
-
+CUDA_VISIBLE_DEVICES=1 nohup sca python main.py task=flowers model.rot=1 &
 ## MNIST
 
 `python main.py task=mnist model.rot=1`

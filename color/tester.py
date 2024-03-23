@@ -24,6 +24,14 @@ from tqdm import tqdm
 
 from . import optim, utils
 
+def get_samples(model):
+    samples = []
+    for m in model.modules():
+        if getattr(m, "samples", None) is None:
+            continue
+        samples.append(m.samples)
+    return torch.stack(samples, dim=1)
+
 def test(
     model: torch.nn.Module,
     dataloaders: Dict[str, DataLoader],
@@ -48,6 +56,9 @@ def classification_test(
 ):
     device = cfg.device
     model.eval()
+
+    rot_samples = []
+    rot_labels = []
     
     with torch.no_grad():
         running_loss = 0
@@ -62,12 +73,22 @@ def classification_test(
             _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
 
+            if cfg.model.variational:
+                samples = get_samples(model)
+                rot_samples.append(samples[0])
+                rot_labels.append(labels[0])
+
             running_loss += loss.item() * inputs.size(0)
             running_corrects += (preds == labels).sum().item()
             total += labels.size(0)
 
         epoch_loss = running_loss / total
         epoch_acc = running_corrects / total
+
+    if cfg.model.variational:
+        print(">>>> sample rotation <<<<")
+        for l, s in zip(rot_labels[:10], rot_samples[:10]):
+            print(l.item(), s.detach().cpu().numpy())
 
     # log statistics of the epoch
     metrics = {

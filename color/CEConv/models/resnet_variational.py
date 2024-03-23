@@ -4,9 +4,10 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from ..ceconv.ceconv2d import CEConv2d
-from ..ceconv.ceconv2d_partial import CEConv2d
+from ..ceconv.ceconv2d import CEConv2d
+from ..ceconv.ceconv2d_variational import CEConv2d as VarCEConv2d
 from ..ceconv.pooling import GroupCosetMaxPool, GroupMaxPool2d
+from .resnet_partial import BasicBlock, Bottleneck
 
 from torch.hub import load_state_dict_from_url
 
@@ -45,13 +46,14 @@ def convert_keys(model_dict: dict):
     return model_dict_new
 
 
-class BasicBlock(nn.Module):
+class VarBasicBlock(nn.Module):
     expansion = 1
 
     def __init__(
-        self, in_planes, planes, stride=1, rotations=1, separable=False
+        self, in_planes, planes, stride=1, rotations=1, separable=False,
+        gumbel_no_iterations=None, version=None
     ) -> None:
-        super(BasicBlock, self).__init__()
+        super(VarBasicBlock, self).__init__()
 
         bnlayer = nn.BatchNorm2d if rotations == 1 else nn.BatchNorm3d
         self.bn1 = bnlayer(planes)
@@ -82,7 +84,7 @@ class BasicBlock(nn.Module):
                     bnlayer(self.expansion * planes),
                 )
         else:
-            self.conv1 = CEConv2d(
+            self.conv1 = VarCEConv2d(
                 rotations,
                 rotations,
                 in_planes,
@@ -92,8 +94,10 @@ class BasicBlock(nn.Module):
                 padding=1,
                 bias=False,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
-            self.conv2 = CEConv2d(
+            self.conv2 = VarCEConv2d(
                 rotations,
                 rotations,
                 planes,
@@ -103,10 +107,12 @@ class BasicBlock(nn.Module):
                 padding=1,
                 bias=False,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
-                    CEConv2d(
+                    VarCEConv2d(
                         rotations,
                         rotations,
                         in_planes,
@@ -115,6 +121,8 @@ class BasicBlock(nn.Module):
                         stride=stride,
                         bias=False,
                         separable=False,
+                        gumbel_no_iterations=gumbel_no_iterations,
+                        version=version
                     ),
                     bnlayer(self.expansion * planes),
                 )
@@ -127,11 +135,14 @@ class BasicBlock(nn.Module):
         return out
 
 
-class Bottleneck(nn.Module):
+class VarBottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, in_planes, planes, stride=1, rotations=1, separable=False):
-        super(Bottleneck, self).__init__()
+    def __init__(
+            self, in_planes, planes, stride=1, rotations=1, separable=False,
+            gumbel_no_iterations=None, version=None
+        ):
+        super(VarBottleneck, self).__init__()
         bnlayer = nn.BatchNorm2d if rotations == 1 else nn.BatchNorm3d
         self.bn1 = bnlayer(planes)
         self.bn2 = bnlayer(planes)
@@ -160,7 +171,7 @@ class Bottleneck(nn.Module):
                     bnlayer(self.expansion * planes),
                 )
         else:
-            self.conv1 = CEConv2d(
+            self.conv1 = VarCEConv2d(
                 rotations,
                 rotations,
                 in_planes,
@@ -168,8 +179,10 @@ class Bottleneck(nn.Module):
                 kernel_size=1,
                 bias=False,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
-            self.conv2 = CEConv2d(
+            self.conv2 = VarCEConv2d(
                 rotations,
                 rotations,
                 planes,
@@ -179,8 +192,10 @@ class Bottleneck(nn.Module):
                 padding=1,
                 bias=False,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
-            self.conv3 = CEConv2d(
+            self.conv3 = VarCEConv2d(
                 rotations,
                 rotations,
                 planes,
@@ -188,11 +203,13 @@ class Bottleneck(nn.Module):
                 kernel_size=1,
                 bias=False,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
 
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
-                    CEConv2d(
+                    VarCEConv2d(
                         rotations,
                         rotations,
                         in_planes,
@@ -201,6 +218,8 @@ class Bottleneck(nn.Module):
                         stride=stride,
                         bias=False,
                         separable=False,
+                        gumbel_no_iterations=gumbel_no_iterations,
+                        version=version
                     ),
                     bnlayer(self.expansion * planes),
                 )
@@ -226,10 +245,14 @@ class ResNet(nn.Module):
         width=64,
         separable=False,
         nopool=False,
+        gumbel_no_iterations=None,
+        version=None
     ) -> None:
         super(ResNet, self).__init__()
 
         self.nopool = nopool
+        self.gumbel_no_iterations = gumbel_no_iterations
+        self.version = version
 
         assert rotations > 0, "rotations must be greater than 0"
 
@@ -255,7 +278,7 @@ class ResNet(nn.Module):
 
         # Use CEConv2D for rotations > 1.
         if rotations > 1:
-            self.conv1 = CEConv2d(
+            self.conv1 = VarCEConv2d(
                 1,  # in_rotations
                 rotations,
                 3,  # in_channels
@@ -266,6 +289,8 @@ class ResNet(nn.Module):
                 bias=False,
                 learnable=learnable,
                 separable=separable,
+                gumbel_no_iterations=gumbel_no_iterations,
+                version=version
             )
             self.bn1 = nn.BatchNorm3d(channels[0])
             if not low_resolution:
@@ -287,6 +312,8 @@ class ResNet(nn.Module):
         # Build resblocks
         self.layers = nn.ModuleList([])
         for i in range(len(num_blocks)):
+            if i == len(num_blocks) - 1:
+                block = VarBasicBlock if block is BasicBlock else VarBottleneck
             self.layers.append(
                 self._make_layer(
                     block,
@@ -312,7 +339,15 @@ class ResNet(nn.Module):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride, rotations, separable))
+            if block in [VarBasicBlock,VarBottleneck]:
+                lyr = block(
+                    self.in_planes, planes, stride, rotations, separable,
+                    gumbel_no_iterations=self.gumbel_no_iterations,
+                    version=self.version
+                )
+            else:
+                lyr = block(self.in_planes, planes, stride, rotations, separable)
+            layers.append(lyr)
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 

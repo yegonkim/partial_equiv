@@ -24,6 +24,21 @@ from tqdm import tqdm
 
 from . import optim, utils
 
+def get_entropy(model):
+    entropy = 0
+    for m in model.modules():
+        if getattr(m, "entropy", None) is None:
+            continue
+        entropy += m.entropy
+    return entropy
+
+def get_variance(model):
+    variance = 0
+    for m in model.modules():
+        if getattr(m, "variance", None) is None:
+            continue
+        variance += m.variance
+    return variance
 
 def train(
     model: torch.nn.Module,
@@ -87,6 +102,11 @@ def classification_train(
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
             loss = criterion(outputs, labels)
+            if cfg.model.variational:
+                entropy = get_entropy(model)
+                loss -= cfg.train.lamda*entropy
+                variance = get_variance(model)
+                loss -= cfg.train.lamda2*variance
             loss.backward()
             optimizer.step()
 
@@ -97,9 +117,9 @@ def classification_train(
         # statistics of the epoch
         epoch_loss = running_loss / total
         epoch_acc = running_corrects / total
-        print(
-            f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
-        print(datetime.datetime.now())
+        # print(
+        #     f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+        # print(datetime.datetime.now())
 
         # log statistics of the epoch
         metrics = {

@@ -7,9 +7,15 @@ train:
   batch_size: 64
   valid_every: 10
   weight_decay: 0
+  lr: 1.0e-3
+  lr_probs: 1.0e-4
+  lamda: 0
+  lamda2: 0
 model:
   rot: 3
   partial: False
+  variational: False
+  version: "v1.0"
   insta: False
   insta_params:
     num_samples: 1

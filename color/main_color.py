@@ -20,12 +20,12 @@ def main_color(cfg: OmegaConf):
         project=cfg.wandb.project,
         config=utils.flatten_configdict(cfg),
         entity=cfg.wandb.entity,
-        settings=wandb.Settings(start_method="thread")
+        settings=wandb.Settings(start_method="thread"),
+        mode=cfg.wandb.mode
     )
     # wandb.define_metric("accuracy_train", summary="max")
     wandb.define_metric("accuracy_valid", summary="max")
     
-    model = construct_model(cfg)
     print("GPU's available:", torch.cuda.device_count())
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
@@ -33,9 +33,12 @@ def main_color(cfg: OmegaConf):
         cfg.device = "cuda:0"
     else:
         cfg.device = "cpu"
-    model.to(cfg.device)
 
     dataloaders = construct_dataloaders(cfg)
+
+    cfg.train_length = len(dataloaders["train"].dataset)
+    model = construct_model(cfg)
+    model.to(cfg.device)
 
     if cfg.pretrained:
         path = cfg.pretrained
