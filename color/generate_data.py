@@ -18,6 +18,32 @@ from omegaconf import OmegaConf
 from color.datasets import CIFAR10
 from torch.utils.data import DataLoader, Dataset, random_split
 
+def generate_stl10(cfg: OmegaConf):
+    # ImageNet-style preprocessing.
+    tr_train = transforms.Compose(
+        [
+            # transforms.ColorJitter(
+            #     brightness=0,
+            #     contrast=0,
+            #     saturation=0,
+            #     hue=0,
+            # ),
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
+    tr_test = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()])
+    
+    x_train = torchvision.datasets.STL10(
+        'data', split="train", transform=tr_train, download=True
+    )
+    x_test = torchvision.datasets.STL10(
+        'data', split="test", transform=tr_test, download=True
+    )
+
+    return x_train, x_test
+
 def generate_cifar10(cfg: OmegaConf):
     dataset = CIFAR10
     validation_split = [45000, 5000]

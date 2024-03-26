@@ -40,6 +40,14 @@ def get_variance(model):
         variance += m.variance
     return variance
 
+def get_last_sample(model):
+    samples = None
+    for m in model.modules():
+        if getattr(m, "samples", None) is None:
+            continue
+        samples = m.samples.clone()
+    return samples
+
 def train(
     model: torch.nn.Module,
     dataloaders: Dict[str, DataLoader],
@@ -81,6 +89,10 @@ def classification_train(
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     best_loss = float('inf')
+
+    # bin for group samples
+    samples_list = []
+    samples_label_list = []
 
     # iterate over epochs
     for epoch in tqdm(range(epochs)):
@@ -137,6 +149,8 @@ def classification_train(
                 running_loss = 0
                 running_corrects = 0
                 total = 0
+                samples = None
+                samples_label = None
                 for data in dataloaders["validation"]:
                     inputs, labels = data
                     inputs = inputs.to(device)
@@ -150,8 +164,16 @@ def classification_train(
                     running_corrects += (preds == labels).sum().item()
                     total += labels.size(0)
 
+                    if cfg.model.variational and torch.any(labels == 9):
+                        samples = get_last_sample(model)[labels==9][0]
+                        samples_label = labels[labels==9][0]
+
                 epoch_loss_valid = running_loss / total
                 epoch_acc_valid = running_corrects / total
+
+                if cfg.model.variational:
+                    samples_list.append(samples)
+                    samples_label_list.append(samples_label)
 
             # log statistics of the epoch
             metrics = {
@@ -185,6 +207,10 @@ def classification_train(
     print("Best Val Acc: {:.4f}".format(best_acc))
     # Load best model weights
     model.load_state_dict(best_model_wts)
+
+    if cfg.model.variational:
+        for l, s in zip(samples_label_list, samples_list):
+            print(f"{l},,{','.join([str(x) for x in s.tolist()])}")
 
     # Return model
     return model

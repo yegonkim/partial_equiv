@@ -4,10 +4,10 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..ceconv.ceconv2d import CEConv2d
-from ..ceconv.ceconv2d_variational import CEConv2d as VarCEConv2d
+from ..ceconv.flops_ceconv2d import CEConv2d
+from ..ceconv.flops_ceconv2d_variational import CEConv2d as VarCEConv2d
 from ..ceconv.pooling import GroupCosetMaxPool, GroupMaxPool2d, GroupCosetAvgPool
-from .resnet_partial import BasicBlock, Bottleneck
+from .flops_resnet_partial import BasicBlock, Bottleneck
 
 from torch.hub import load_state_dict_from_url
 
@@ -45,12 +45,6 @@ def convert_keys(model_dict: dict):
         model_dict_new[k] = v
     return model_dict_new
 
-def parse_vplayers(vplayers):
-    vplayers = vplayers.split("h")[1]
-    h, t = vplayers.split("t")
-    h, t = int(h), int(t)
-    return h, t
-
 
 class VarBasicBlock(nn.Module):
     expansion = 1
@@ -60,6 +54,9 @@ class VarBasicBlock(nn.Module):
         gumbel_no_iterations=None, version=None
     ) -> None:
         super(VarBasicBlock, self).__init__()
+        self._conv1 = 0
+        self._conv2 = 0
+        self._shortcut = 0
 
         bnlayer = nn.BatchNorm2d if rotations == 1 else nn.BatchNorm3d
         self.bn1 = bnlayer(planes)
@@ -75,9 +72,11 @@ class VarBasicBlock(nn.Module):
             self.conv1 = nn.Conv2d(
                 in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
             )
+            self._conv1 = in_planes*planes*3*3
             self.conv2 = nn.Conv2d(
                 planes, planes, kernel_size=3, stride=1, padding=1, bias=False
             )
+            self._conv2 = planes*planes*3*3
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
                     nn.Conv2d(
@@ -89,6 +88,7 @@ class VarBasicBlock(nn.Module):
                     ),
                     bnlayer(self.expansion * planes),
                 )
+                self._shortcut = in_planes*self.expansion*planes*1*1
         else:
             self.conv1 = VarCEConv2d(
                 rotations,
@@ -135,8 +135,11 @@ class VarBasicBlock(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         out = F.relu(self.bn1(self.conv1(x)))
+        print(self._conv1*out.size(-1)*out.size(-2))
         out = self.bn2(self.conv2(out))
+        print(self._conv2*out.size(-1)*out.size(-2))
         out += self.shortcut(x)
+        print(self._shortcut*out.size(-1)*out.size(-2))
         out = F.relu(out)
         return out
 
@@ -238,6 +241,11 @@ class VarBottleneck(nn.Module):
         out = F.relu(out)
         return out
 
+def parse_vplayers(vplayers):
+    vplayers = vplayers.split("h")[1]
+    h, t = vplayers.split("t")
+    h, t = int(h), int(t)
+    return h, t
 
 class ResNet(nn.Module):
     def __init__(
@@ -246,16 +254,17 @@ class ResNet(nn.Module):
         num_blocks,
         num_classes=1000,
         rotations=1,
-        groupcosetmaxpool=False, # True for flowers102
+        groupcosetmaxpool=False,
         learnable=False,
         width=64,
-        separable=False, # True for flowers102
+        separable=False,
         nopool=False,
         gumbel_no_iterations=None,
         version=None,
         vplayers=None
     ) -> None:
         super(ResNet, self).__init__()
+        self._conv1 = 0
         heads, tails = parse_vplayers(vplayers)
 
         self.nopool = nopool
@@ -286,6 +295,7 @@ class ResNet(nn.Module):
 
         # Use CEConv2D for rotations > 1.
         if rotations > 1 and tails >= 1:
+            print("embed", "VarCEConv2d")
             self.conv1 = VarCEConv2d(
                 1,  # in_rotations
                 rotations,
@@ -304,6 +314,7 @@ class ResNet(nn.Module):
             if not low_resolution:
                 self.maxpool = GroupMaxPool2d(kernel_size=3, stride=2, padding=1)
         elif rotations > 1:
+            print("embed", "CEConv2d")
             self.conv1 = CEConv2d(
                 1,  # in_rotations
                 rotations,
@@ -320,6 +331,7 @@ class ResNet(nn.Module):
             if not low_resolution:
                 self.maxpool = GroupMaxPool2d(kernel_size=3, stride=2, padding=1)
         else:
+            print("embed", "Conv2d")
             self.conv1 = nn.Conv2d(
                 3,
                 channels[0],
@@ -328,6 +340,7 @@ class ResNet(nn.Module):
                 padding=1,
                 bias=False,
             )
+            self._conv1 = 3*channels[0]*conv1_kernelsize*conv1_kernelsize
             self.bn1 = nn.BatchNorm2d(channels[0])
             if not low_resolution:
                 self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -338,6 +351,7 @@ class ResNet(nn.Module):
         for i in range(len(num_blocks)):
             if i < tails-1 or len(num_blocks)-i <= heads:
                 block = VarBasicBlock if block is BasicBlock else VarBottleneck
+            print("block", block)
             self.layers.append(
                 self._make_layer(
                     block,
@@ -379,22 +393,31 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.relu(self.bn1(self.conv1(x)))
+        print(self._conv1*out.size(-1)*out.size(-2))
+        print("embedding layer")
         out = self.maxpool(out)
+        print("first pooling layer")
         for layer in self.layers:
             out = layer(out)
+            print("layers")
 
         if not self.nopool:
             # Pool over group dimension or flatten
             if len(out.shape) == 5:
                 if self.cosetpoollayer:
+                    print("before cosetpool layer", out.size())
                     out = self.cosetpoollayer(out)
+                    print("after  cosetpool layer", out.size())
                 else:
                     outs = out.size()
                     out = out.view(outs[0], outs[1] * outs[2], outs[3], outs[4])
-
+                    print("squeezing layer")
+            print("before avgpool layer", out.size())
             out = self.avgpool(out)
+            print("after  avgpool layer", out.size())
             out = out.view(out.size(0), -1)
             out = self.linear(out)
+            print("last linear layer")
         return out
 
 

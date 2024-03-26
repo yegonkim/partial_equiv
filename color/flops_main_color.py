@@ -8,9 +8,10 @@ import wandb
 import hydra
 from omegaconf import OmegaConf
 
-from color.model_constructor import construct_model
+from color.flops_model_constructor import construct_model
 from color.dataset_constructor import construct_dataloaders
 from color import utils, trainer, tester
+from thop import profile
 
 # @hydra.main(version_base=None, config_path="cfg", config_name="config.yaml")
 def main_color(cfg: OmegaConf):
@@ -39,6 +40,10 @@ def main_color(cfg: OmegaConf):
     cfg.train_length = len(dataloaders["train"].dataset)
     model = construct_model(cfg)
     model = model.to(cfg.device)
+    if cfg.flops:
+        macs, params = profile(model, inputs=(torch.randn(1, 3, 224, 224).to(cfg.device),))
+        print("FLOPS: ", macs, "Params: ", params)
+        return
 
     if cfg.pretrained:
         path = cfg.pretrained
@@ -47,8 +52,8 @@ def main_color(cfg: OmegaConf):
         )
 
     # Train the model
-    if cfg.train.do:
-        trainer.train(model, dataloaders, cfg)
+    # if cfg.train.do:
+    #     trainer.train(model, dataloaders, cfg)
 
     # Test the model
     tester.test(model, dataloaders, cfg)

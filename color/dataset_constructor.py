@@ -4,7 +4,7 @@ import torch
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader, Dataset, random_split
 
-from .generate_data import generate_colormnist_longtailed, generate_102flower_data, generate_cifar10
+from .generate_data import generate_colormnist_longtailed, generate_102flower_data, generate_cifar10, generate_stl10
 
 def construct_datasets(
     cfg: OmegaConf,
@@ -14,12 +14,19 @@ def construct_datasets(
         train_set = datasets['train']
         test_set = datasets['test']
         datasets = {"train": train_set, "validation": test_set, "test": test_set}
+        cfg.num_classes = 102
     elif cfg.dataset == "MNIST":
         train_set, test_set = generate_colormnist_longtailed(datapath='data')
         datasets = {"train": train_set, "validation": test_set, "test": test_set}
+        cfg.num_classes = 30
     elif cfg.dataset == "CIFAR10":
         training_set, validation_set, test_set = generate_cifar10(cfg)
         datasets = {"train": training_set, "validation": validation_set, "test": test_set}
+        cfg.num_classes = 10
+    elif cfg.dataset == "STL10":
+        training_set, test_set = generate_stl10(cfg)
+        datasets = {"train": training_set, "validation": test_set, "test": test_set}
+        cfg.num_classes = 10
     else:
         raise ValueError(f"Dataset {cfg.dataset} not recognized.")
     

@@ -1,12 +1,12 @@
 # @package _global_
 type: "color"
-dataset: "Flowers102"
+dataset: "STL10"
 train:
   do: True
   epochs: 300
   batch_size: 64
-  valid_every: 10
-  weight_decay: 0
+  valid_every: 1
+  weight_decay: 1.0e-5
   lr: 1.0e-3
   lr_probs: 1.0e-4
   lamda: 0
@@ -17,11 +17,13 @@ model:
   partial: False
   variational: False
   version: "v1.0"
-  vplayers: h1t1
   maxpool: True
   insta: False
   insta_params:
     num_samples: 1
-    lambda_entropy: 1e-4
+    lambda_entropy: 1.0e-4
     h_min: -1.5
     h_max: 2
+dataset_params:
+  rot_interval: 0
+augment: None

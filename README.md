@@ -7,7 +7,10 @@
 `python main.py task=flowers model.rot=3`
 `python main.py task=flowers model.rot=3 model.partial=True`
 `python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=3`
-CUDA_VISIBLE_DEVICES=1 nohup sca python main.py task=flowers model.rot=1 &
+CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=1 &
+CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=1 train.epochs=1000 &
+CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=3 train.epochs=1000 &
+CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=3 model.partial=True train.epochs=1000 &
 ## MNIST
 
 `python main.py task=mnist model.rot=1`

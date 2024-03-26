@@ -1,0 +1,43 @@
+program: main.py
+method: bayes
+metric:
+  goal: maximize
+  name: accuracy_test
+parameters:
+  task:
+    value: flowers
+  model.rot:
+    value: 3
+  model.variational:
+    value: True
+  model.version:
+    values: [v1.1, v1.2]
+  train.epochs:
+    values: [500, 600, 700]
+  train.batch_size:
+    value: 64
+  train.lr:
+    values: [5.0e-4, 2.0e-4, 1.0e-4]
+  train.lr_probs:
+    values: [5.0e-5, 2.0e-5, 1.0e-5]
+  train.weight_decay:
+    values: [1.0e-4, 1.0e-3, 1.0e-2]
+  train.lamda:
+    values: [0.01, 0.0, 0.001, 0.1]
+  train.lamda2:
+    values: [0.01, 0.0, 0.001, 0.1]
+  train.valid_every:
+    values: [10, 100]
+  wandb.entity:
+    value: kim-hyunsu
+  wandb.mode:
+    value: online
+  seed:
+    values: [2024, 0, 15236]
+
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args_no_hyphens}

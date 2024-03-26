@@ -12,10 +12,12 @@ train:
   lamda: 0
   lamda2: 0
 model:
+  architecture: resnet18
   rot: 3
   partial: False
   variational: False
   version: "v1.0"
+  maxpool: True
   insta: False
   insta_params:
     num_samples: 1

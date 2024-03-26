@@ -52,6 +52,7 @@ def construct_model(
     """
     gumbel_no_iterations = math.ceil(cfg.train_length / float(cfg.train.batch_size))  # Iter per epoch
     gumbel_no_iterations = cfg.train.epochs * gumbel_no_iterations
+    invariance = None
 
     if cfg.dataset in ["Flowers102", "CIFAR10", "STL10"]:
         assert cfg.model.variational or ((not cfg.model.variational) and cfg.model.maxpool)
@@ -60,14 +61,14 @@ def construct_model(
         
         models_dict = {
             "resnet18": {
-                "variational": models.CEResNet18_variational,
-                "partial": models.CEResNet18_partial,
-                "normal": models.CEResNet18
+                "variational": models.flops_CEResNet18_variational,
+                "partial": models.flops_CEResNet18_partial,
+                "normal": models.flops_CEResNet18
             },
             "resnet44": {
-                "variational": models.CEResNet44_variational,
-                "partial": models.CEResNet44_partial,
-                "normal": models.CEResNet44
+                "variational": models.flops_CEResNet44_variational,
+                "partial": models.flops_CEResNet44_partial,
+                "normal": models.flops_CEResNet44
             },
         }
 
@@ -76,7 +77,7 @@ def construct_model(
                 **kwargs,
                 gumbel_no_iterations=gumbel_no_iterations,
                 version=cfg.model.version,
-                vplayers=cfg.model.vplayers
+                vplayers=cfg.model.vplayers 
             )
         elif not cfg.model.partial:
             model = models_dict[cfg.model.architecture]["normal"](**kwargs)
@@ -123,7 +124,7 @@ def construct_model(
         raise NotImplementedError(f"Dataset {cfg.dataset} is not implemented.")
     
     # print number parameters
-    no_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    no_params = sum(p.numel() for p in invariance.parameters() if p.requires_grad)
     print("Number of parameters:", no_params)
     wandb.run.summary["no_params"] = no_params
     

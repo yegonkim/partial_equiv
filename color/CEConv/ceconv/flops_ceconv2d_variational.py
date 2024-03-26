@@ -138,6 +138,8 @@ class CEConv2d(nn.Conv2d):
         self.out_rotations = out_rotations
         self.separable = separable
         self.version = version
+        self._filter_conv1 = 0
+        self._filter_conv2 = 0
 
         super().__init__(in_channels, out_channels, kernel_size, **kwargs)
 
@@ -174,10 +176,7 @@ class CEConv2d(nn.Conv2d):
         self.gumbel_no_iterations = gumbel_no_iterations
         self.register_buffer("gumbel_iter_counter", torch.zeros(1))
 
-        if self.version == "v0.0":
-            self.gumbel_temp = 1.0
-            probs_dim = (out_rotations-1)*2
-        elif self.version == "v1.0":
+        if self.version == "v1.0":
             probs_dim = out_rotations-1
         elif self.version in ["v1.1", "v1.2"]:
             probs_dim = 1
@@ -187,25 +186,20 @@ class CEConv2d(nn.Conv2d):
         if self.in_rotations == 1:
             hidden = 2*in_channels
             self.filter_conv1 = torch.nn.Conv2d(in_channels, hidden, 3, 2)
+            self._filter_conv1 = in_channels*hidden*3*3
             self.filter_nonlinear = torch.nn.ReLU()
             self.filter_conv2 = torch.nn.Conv2d(hidden, hidden, 3, 2)
+            self._filter_conv2 = hidden*hidden*3*3
             self.filter_linear1 = torch.nn.Linear(hidden, probs_dim)
         else:
             self.filter_conv1 = torch.nn.Conv1d(in_channels, in_channels, 2, 1)
+            self._filter_conv1 = in_channels*in_channels*2
             self.filter_nonlinear = torch.nn.ReLU()
             self.filter_conv2 = torch.nn.Conv1d(in_channels, in_channels, 2, 1)
+            self._filter_conv2 = in_channels*in_channels*2
             self.filter_linear1 = torch.nn.Linear(in_channels, probs_dim)
 
-        if self.version == "v0.0":
-            self.filter_linear1.bias = nn.Parameter(
-                torch.stack(
-                    [
-                        torch.ones(out_rotations-1)*5,
-                        torch.zeros(out_rotations-1)
-                    ],
-                    dim=1).view(-1)
-            )
-        elif self.version == "v1.0":
+        if self.version == "v1.0":
             with torch.no_grad():
                 self.filter_linear1.bias.fill_(5)
         elif self.version == "v1.1":
@@ -238,16 +232,20 @@ class CEConv2d(nn.Conv2d):
         if self.in_rotations == 1:
             x = x.squeeze(-3)
             x = self.filter_conv1(x)
+            print(self._filter_conv1*x.size(-1)*x.size(-2))
             x = self.filter_nonlinear(x)
             x = self.filter_conv2(x)
+            print(self._filter_conv2*x.size(-1)*x.size(-2))
             x = self.filter_nonlinear(x)
             x = x.mean(dim=(-1, -2))  # (B, C)
             x = self.filter_linear1(x)
         else:
             x = x.mean(dim=(-1, -2))  # (B, C, G)
             x = self.filter_conv1(x)
+            print(self._filter_conv1*x.size(-1))
             x = self.filter_nonlinear(x)
             x = self.filter_conv2(x)
+            print(self._filter_conv2*x.size(-1))
             x = self.filter_nonlinear(x)
             x = x.mean(dim=-1)  # (B, C)
             x = self.filter_linear1(x)  # (B, C/2)
@@ -263,9 +261,7 @@ class CEConv2d(nn.Conv2d):
         return current_temperature
 
     def forward(self, *args, **kwargs):
-        if self.version == "v0.0":
-            return self._v0_0(*args, **kwargs)
-        elif self.version == "v1.0":
+        if self.version == "v1.0":
             return self._v1_0(*args, **kwargs)
         elif self.version == "v1.1":
             return self._v1_1(*args, **kwargs)
@@ -273,69 +269,6 @@ class CEConv2d(nn.Conv2d):
             return self._v1_2(*args, **kwargs)
         else:
             raise NotImplementedError
-
-    def _v0_0(self, input: torch.Tensor) -> torch.Tensor:
-
-        # Compute full filter weights.
-        if self.in_rotations == 1:
-            # Apply rotation to input layer filter.
-            tw = _trans_input_filter(
-                self.weight, self.out_rotations, self.transformation_matrix
-            )
-        else:
-            # Apply cyclic permutation to hidden layer filter.
-            if self.separable:
-                weight = torch.mul(self.pointwise_weight, self.weight)
-            else:
-                weight = self.weight
-            tw = _trans_hidden_filter(weight, self.out_rotations)
-
-        tw_shape = (
-            self.out_channels * self.out_rotations,
-            self.in_channels * self.in_rotations,
-            *self.kernel_size,
-        )
-        tw = tw.view(tw_shape)
-
-        # Apply convolution.
-        input_shape = input.size()
-        input = input.view(
-            input_shape[0],
-            self.in_channels * self.in_rotations,
-            input_shape[-2],
-            input_shape[-1],
-        )
-
-        y = F.conv2d(
-            input, weight=tw, bias=None, stride=self.stride, padding=self.padding
-        )
-
-        batch_size, _, ny_out, nx_out = y.size()
-        y = y.view(batch_size, self.out_channels, self.out_rotations, ny_out, nx_out)
-
-        # Apply bias.
-        if self.bias is not None:
-            bias = self.bias.view(1, self.out_channels, 1, 1, 1)
-            y = y + bias
-        
-        input = input.view(
-            input_shape[0],
-            self.in_channels,
-            self.in_rotations,
-            input_shape[-2],
-            input_shape[-1]
-        )
-        gumbel_param = self.encode(input).view(-1, self.out_rotations-1, 2)
-        gumbel = gumbel_softmax(gumbel_param, self.gumbel_temp) # [out_rotations-1, 2]
-        gumbel = gumbel[:, :, 0] # [out_rotations]
-        B, d = gumbel.size()
-        gumbel = torch.cat([torch.ones(B, 1).to(gumbel.device), gumbel], dim=-1) # [out_rotations]
-        self.samples = gumbel.clone()
-        
-        y = y * gumbel.view(B, 1, self.out_rotations, 1, 1)
-
-        return y
-
     def _v1_0(self, input: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
 
@@ -450,6 +383,11 @@ class CEConv2d(nn.Conv2d):
         y = F.conv2d(
             input, weight=tw, bias=None, stride=self.stride, padding=self.padding
         )
+        IN = self.in_channels*self.in_rotations
+        OUT = self.out_channels*self.out_rotations
+        K2 = np.prod(self.kernel_size)
+        H, W = y.size(-2), y.size(-1)
+        print(IN*OUT*K2*H*W)
 
         batch_size, _, ny_out, nx_out = y.size()
         y = y.view(batch_size, self.out_channels, self.out_rotations, ny_out, nx_out)
@@ -526,6 +464,11 @@ class CEConv2d(nn.Conv2d):
         y = F.conv2d(
             input, weight=tw, bias=None, stride=self.stride, padding=self.padding
         )
+        IN = self.in_channels*self.in_rotations
+        OUT = self.out_channels*self.out_rotations
+        K2 = np.prod(self.kernel_size)
+        H, W = y.size(-2), y.size(-1)
+        print(IN*OUT*K2*H*W)
 
         batch_size, _, ny_out, nx_out = y.size()
         y = y.view(batch_size, self.out_channels, self.out_rotations, ny_out, nx_out)
@@ -551,11 +494,11 @@ class CEConv2d(nn.Conv2d):
         sample_rotation = (prob_rotations > (1/(self.out_rotations+1))).float()
         sample_rotation = sample_rotation - prob_rotations.detach() + prob_rotations
 
-        self.probs_all = probs.clone()
+        self.probs_all = probs
         entropy = - (prob_rotations-(1/(self.out_rotations+0.5))).pow(2).sum(-1)
         self.entropy = entropy.mean()
         self.variance = sample_rotation.sum(-1).var(dim=0)
-        self.samples = sample_rotation.clone()
+        self.samples = sample_rotation
 
         num_ones = sample_rotation.sum(-1, keepdims=True)
         B, d = sample_rotation.size()
