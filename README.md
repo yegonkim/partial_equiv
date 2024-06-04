@@ -1,30 +1,93 @@
-# equivaritizer_benchmarks
+# Variational Partial G-CNN
+
+
 
 ## Flowers
 
+### CEResNet
 `python main.py task=flowers model.rot=1`
-`python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=1`
-`python main.py task=flowers model.rot=3`
-`python main.py task=flowers model.rot=3 model.partial=True`
-`python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=3`
-CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=1 &
-CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=1 train.epochs=1000 &
-CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=3 train.epochs=1000 &
-CUDA_VISIBLE_DEVICES=2 nohup sca python main.py task=stl10 model.rot=3 model.partial=True train.epochs=1000 &
-## MNIST
 
+`python main.py task=flowers model.rot=3`
+
+### Partial CEResNet
+`python main.py task=flowers model.rot=3 model.partial=True`
+
+### InstaAug
+`python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=1`
+
+`python main.py task=flowers model.rot=1 model.insta=True model.insta_params.num_samples=3`
+
+### AdaAug
+`python main.py task=flowers model.rot=1 ada_aug.do=True`
+
+`python main.py task=flowers model.rot=3 ada_aug.do=True`
+
+`python main.py task=flowers model.rot=3 ada_aug.do=True model.partial=True`
+
+### VP CEResNet
+```bash
+python main.py
+    task=flowers \
+    seed=2024 \
+    model.rot=3 \
+    model.variational=True \
+    model.version=v1.2 \
+    train.lr=2.0e-4 \
+    train.lr_probs=2.0e-5 \
+    train.weight_decay=0.01 \
+    train.lamda=0.01 \
+    train.lamda2=0 \
+    train.epochs=700 \
+    wandb.entity=Your-Wandb-Name \
+    no_workers=1
+```
+
+## ColorMNIST
+
+### CEResNet
 `python main.py task=mnist model.rot=1`
-`python main.py task=mnist model.rot=1 model.insta=True model.insta_params.num_samples=1`
+
 `python main.py task=mnist model.rot=3`
+
+### Partial CEResNet
 `python main.py task=mnist model.rot=3 model.partial=True`
+
+### InstaAug
+`python main.py task=mnist model.rot=1 model.insta=True model.insta_params.num_samples=1`
+
 `python main.py task=mnist model.rot=1 model.insta=True model.insta_params.num_samples=3`
+
+### VP CEResNet
+```bash
+python main.py
+    task=mnist \
+    seed=2024 \
+    model.rot=3 \
+    model.variational=True \
+    model.version=v1.1 \
+    train.lr=1.0e-3 \
+    train.lr_probs=1.0e-4 \
+    train.weight_decay=1.0e-5 \
+    train.lamda=1 \
+    train.lamda2=0 \
+    train.epochs=1500 \
+    wandb.entity=Your-Wandb-Name \
+    no_workers=1
+```
 
 ## CIFAR10 Color
 
+### CEResNet
 `python main.py task=cifar_color no_workers=3 model.rot=1`
-`python main.py task=cifar_color no_workers=3 model.rot=1 model.insta=True model.insta_params.num_samples=1`
+
 `python main.py task=cifar_color no_workers=3 model.rot=3`
+
+### Partial CEResNet
 `python main.py task=cifar_color no_workers=3 model.rot=3 model.partial=True`
+
+### InstaAug
+`python main.py task=cifar_color no_workers=3 model.rot=1 model.insta=True model.insta_params.num_samples=1`
+
 `python main.py task=cifar_color no_workers=3 model.rot=1 model.insta=True model.insta_params.num_samples=3`
 
 ## CIFAR10 Rotation

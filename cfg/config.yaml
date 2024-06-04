@@ -3,7 +3,7 @@ defaults:
   - task: flowers
 wandb:
   entity: kaist_yegonkim
-  project: partial_equiv
+  project: partial_equiv_2024_2
   mode: online
 pretrained: 
 device: cuda
@@ -15,4 +15,7 @@ model:
   variational: false
   version: v1.0
 flops: false
+ada_aug:
+  do: false
+  
 

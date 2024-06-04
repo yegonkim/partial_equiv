@@ -9,8 +9,9 @@ import hydra
 from omegaconf import OmegaConf
 
 from color.model_constructor import construct_model
-from color.dataset_constructor import construct_dataloaders
-from color import utils, trainer, tester
+from color.dataset_constructor import construct_dataloaders, construct_datasets
+from color import trainer, utils, tester
+from color.ada_aug import train_AdaAug, augment_dataloader
 
 # @hydra.main(version_base=None, config_path="cfg", config_name="config.yaml")
 def main_color(cfg: OmegaConf):
@@ -46,9 +47,17 @@ def main_color(cfg: OmegaConf):
             torch.load(path, map_location=cfg.device)["model"]
         )
 
+    # Train AdaAug
+    if cfg.ada_aug.do:
+        print("Training AdaAug")
+        adaaug = train_AdaAug(dataloaders["train"].dataset, cfg)
+        print("AdaAug training complete")
+    else:
+        adaaug = None
+
     # Train the model
     if cfg.train.do:
-        trainer.train(model, dataloaders, cfg)
+        trainer.train(model, dataloaders, cfg, adaaug)
 
     # Test the model
     tester.test(model, dataloaders, cfg)

@@ -25,3 +25,9 @@ model:
     lambda_entropy: 1e-4
     h_min: -1.5
     h_max: 2
+ada_aug:
+  model_name: resnet18
+  grad_clip: 5.0
+  epochs: 200
+  search_freq: 1
+  search_ratio: 0.5

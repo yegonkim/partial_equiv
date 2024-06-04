@@ -52,6 +52,7 @@ def train(
     model: torch.nn.Module,
     dataloaders: Dict[str, DataLoader],
     cfg: OmegaConf,
+    adaaug=None,
 ):
     # Define optimizer and scheduler
     optimizer = optim.construct_optimizer(model, cfg)
@@ -67,6 +68,7 @@ def train(
         dataloaders,
         lr_scheduler,
         cfg,
+        adaaug=adaaug,
     )
 
     # Save the final model
@@ -80,6 +82,7 @@ def classification_train(
     dataloaders: Dict[str, DataLoader],
     lr_scheduler,
     cfg: OmegaConf,
+    adaaug=None,
 ):
     # Training parameters
     epochs = cfg.train.epochs
@@ -108,6 +111,7 @@ def classification_train(
             inputs, labels = data
             inputs = inputs.to(device)
             labels = labels.to(device)
+            inputs = adaaug(inputs, mode='exploit') if adaaug is not None else inputs
 
             optimizer.zero_grad()
 
@@ -135,12 +139,12 @@ def classification_train(
 
         # log statistics of the epoch
         metrics = {
-            "accuracy_train": epoch_acc,
-            "loss_train": epoch_loss,
+            "train/accuracy": epoch_acc,
+            "train/loss": epoch_loss,
+            "train/epoch": epoch + 1,
         }
         wandb.log(
             metrics,
-            step=epoch + 1,
         )
 
         if (epoch+1) % cfg.train.valid_every==0:
@@ -177,12 +181,12 @@ def classification_train(
 
             # log statistics of the epoch
             metrics = {
-                "accuracy_valid": epoch_acc_valid,
-                "loss_valid": epoch_loss_valid,
+                "valid/accuracy": epoch_acc_valid,
+                "valid/loss": epoch_loss_valid,
+                "valid/epoch": epoch + 1,
             }
             wandb.log(
                 metrics,
-                step=epoch + 1,
             )
             print(
                 f"Validation Loss: {epoch_loss_valid:.4f} Acc: {epoch_acc_valid:.4f}")
@@ -222,6 +226,7 @@ def classification_train_insta(
     dataloaders: Dict[str, DataLoader],
     lr_scheduler,
     cfg: OmegaConf,
+    adaaug=None,
 ):
     # Training parameters
     epochs = cfg.train.epochs
@@ -248,6 +253,7 @@ def classification_train_insta(
             inputs, labels = data
             inputs = inputs.to(device)
             labels = labels.to(device)
+            inputs = adaaug(inputs, mode='exploit') if adaaug is not None else inputs
 
             optimizer.zero_grad()
 
@@ -280,13 +286,13 @@ def classification_train_insta(
 
         # log statistics of the epoch
         metrics = {
-            "accuracy_train": epoch_acc,
-            "entropy_train": epoch_entropy,
-            "loss_train": epoch_loss,
+            "train/accuracy": epoch_acc,
+            "train/entropy": epoch_entropy,
+            "train/loss": epoch_loss,
+            "train/epoch": epoch + 1,
         }
         wandb.log(
             metrics,
-            step=epoch + 1,
         )
 
         if (epoch+1) % cfg.train.valid_every==0:
@@ -316,13 +322,13 @@ def classification_train_insta(
 
             # log statistics of the epoch
             metrics = {
-                "accuracy_valid": epoch_acc_valid,
-                "entropy_valid": epoch_entropy,
-                "loss_valid": epoch_loss_valid,
+                "valid/accuracy": epoch_acc_valid,
+                "valid/entropy": epoch_entropy,
+                "valid/loss": epoch_loss_valid,
+                "valid/epoch": epoch + 1,
             }
             wandb.log(
                 metrics,
-                step=epoch + 1,
             )
             print(
                 f"Validation Loss: {epoch_loss_valid:.4f} Entropy: {epoch_entropy:.4f} Acc: {epoch_acc_valid:.4f}")

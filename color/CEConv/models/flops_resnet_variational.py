@@ -90,6 +90,7 @@ class VarBasicBlock(nn.Module):
                 )
                 self._shortcut = in_planes*self.expansion*planes*1*1
         else:
+            print("vpconv1")
             self.conv1 = VarCEConv2d(
                 rotations,
                 rotations,
@@ -103,6 +104,7 @@ class VarBasicBlock(nn.Module):
                 gumbel_no_iterations=gumbel_no_iterations,
                 version=version
             )
+            print("vpconv1")
             self.conv2 = VarCEConv2d(
                 rotations,
                 rotations,
@@ -116,6 +118,7 @@ class VarBasicBlock(nn.Module):
                 gumbel_no_iterations=gumbel_no_iterations,
                 version=version
             )
+            print("vpshortcut")
             if stride != 1 or in_planes != self.expansion * planes:
                 self.shortcut = nn.Sequential(
                     VarCEConv2d(
@@ -350,11 +353,13 @@ class ResNet(nn.Module):
         self.layers = nn.ModuleList([])
         for i in range(len(num_blocks)):
             if i < tails-1 or len(num_blocks)-i <= heads:
-                block = VarBasicBlock if block is BasicBlock else VarBottleneck
-            print("block", block)
+                _block = VarBasicBlock if block is BasicBlock else VarBottleneck
+            else:
+                _block = block
+            print("block", _block)
             self.layers.append(
                 self._make_layer(
-                    block,
+                    _block,
                     channels[i],
                     num_blocks[i],
                     stride=strides[i],

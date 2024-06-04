@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from ..ceconv.ceconv2d import CEConv2d
 from ..ceconv.ceconv2d_variational import CEConv2d as VarCEConv2d
 from ..ceconv.pooling import GroupCosetMaxPool, GroupMaxPool2d, GroupCosetAvgPool
-from .resnet_partial import BasicBlock, Bottleneck
+from .resnet import BasicBlock, Bottleneck
 
 from torch.hub import load_state_dict_from_url
 
@@ -337,10 +337,12 @@ class ResNet(nn.Module):
         self.layers = nn.ModuleList([])
         for i in range(len(num_blocks)):
             if i < tails-1 or len(num_blocks)-i <= heads:
-                block = VarBasicBlock if block is BasicBlock else VarBottleneck
+                _block = VarBasicBlock if block is BasicBlock else VarBottleneck
+            else:
+                _block = block
             self.layers.append(
                 self._make_layer(
-                    block,
+                    _block,
                     channels[i],
                     num_blocks[i],
                     stride=strides[i],

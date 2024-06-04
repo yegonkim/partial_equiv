@@ -17,7 +17,7 @@ def main(cfg: OmegaConf):
 
     if cfg.type == "color":
         main_color(cfg)
-    elif cfg.type == "rotation":
+    elif cfg.type == "rotation": # VP G-CNN is not implemented
         main_rotation(cfg)
     else:
         raise ValueError(f"Unknown task type: {cfg.type}")

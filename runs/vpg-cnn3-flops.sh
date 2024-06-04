@@ -13,4 +13,4 @@ sca python flops_main.py \
     no_workers=1 \
     wandb.mode=disabled \
     flops=True \
-    model.vplayers=h1t1 
+    model.vplayers=h4t1

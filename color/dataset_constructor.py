@@ -34,7 +34,7 @@ def construct_datasets(
 
 
 def construct_dataloaders(
-    cfg: OmegaConf,
+    cfg,
 ):
     """
     Construct DataLoaders for the selected dataset
@@ -54,4 +54,5 @@ def construct_dataloaders(
             pin_memory=False,
         )
 
-    return dataloaders
+    return dataloaders # dictionary of dataloaders {"train": train_loader, "validation": val_loader , "test": test_loader}
+

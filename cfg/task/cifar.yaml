@@ -64,7 +64,7 @@ train:
   monotonic_decay_loss: 0.0
   lamda: 0.0
   equiv_loss: 0.0
-dataset: ""
+dataset: "CIFAR10"
 dataset_params:
   rot_interval: 0
 augment: None

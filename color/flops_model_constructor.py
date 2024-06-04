@@ -124,7 +124,7 @@ def construct_model(
         raise NotImplementedError(f"Dataset {cfg.dataset} is not implemented.")
     
     # print number parameters
-    no_params = sum(p.numel() for p in invariance.parameters() if p.requires_grad)
+    no_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Number of parameters:", no_params)
     wandb.run.summary["no_params"] = no_params
     

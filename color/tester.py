@@ -111,6 +111,7 @@ def classification_test_insta(
     with torch.no_grad():
         running_loss = 0
         running_corrects = 0
+        running_entropy = 0
         total = 0
         for data in dataloaders["test"]:
             inputs, labels = data
